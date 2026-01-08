@@ -13,8 +13,9 @@ import org.springframework.http.HttpStatus;
 import com.cjc.springbootapp.model.User;
 import com.cjc.springbootapp.service.UserService;
 
+
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/user")
 @CrossOrigin
 public class UserController {
 
@@ -22,18 +23,15 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/register")
-    public User register(@RequestBody User user) {
+    public User registerUser(@RequestBody User user) {
         return userService.register(user);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User user) {
-        User loggedUser = userService.login(user.getEmail(), user.getPassword());
-
-        if (loggedUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid Credentials");
-        }
-        return ResponseEntity.ok(loggedUser);
+    public User login(@RequestBody User user) {
+        User u = userService.login(user.getEmail(), user.getPassword());
+        if (u == null) throw new RuntimeException("Invalid credentials");
+        return u;
     }
 }
+
