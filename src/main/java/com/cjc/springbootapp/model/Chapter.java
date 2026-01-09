@@ -16,6 +16,7 @@ public class Chapter {
     private Long id;
 
     private String title;
+    private String content;
 
     @ManyToOne
     @JsonIgnore   // ✅ VERY IMPORTANT
@@ -49,6 +50,8 @@ public class Chapter {
 		return topics;
 	}
 
+	   public String getContent() { return content; }
+	    public void setContent(String content) { this.content = content; }
 	public void setTopics(List<Topic> topics) {
 		this.topics = topics;
 	}

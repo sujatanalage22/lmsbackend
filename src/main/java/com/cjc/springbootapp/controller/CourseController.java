@@ -1,8 +1,6 @@
 package com.cjc.springbootapp.controller;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -12,55 +10,95 @@ import com.cjc.springbootapp.DTO.ChapterDTO;
 import com.cjc.springbootapp.DTO.CourseDTO;
 import com.cjc.springbootapp.DTO.TopicDTO;
 import com.cjc.springbootapp.model.Course;
+import com.cjc.springbootapp.repository.CourseRepository;
 import com.cjc.springbootapp.service.CourseService;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
 @RequestMapping("/api/course")
+@CrossOrigin(origins = "http://localhost:3000")
 public class CourseController {
 
     @Autowired
     private CourseService courseService;
 
-    // ADD COURSE
+    @Autowired
+    private CourseRepository courseRepository;
+
+    // ===================== ADD COURSE =====================
     @PostMapping
     public Course addCourse(@RequestBody Course course) {
         return courseService.addCourse(course);
     }
 
-    // ✅ GET ALL COURSES (FOR HOME PAGE)
+    // ===================== UPDATE COURSE (MENTOR) =====================
+    @PutMapping("/mentor/{courseId}")
+    public Course updateCourse(
+            @PathVariable Long courseId,
+            @RequestBody Course updatedCourse) {
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        course.setTitle(updatedCourse.getTitle());
+        course.setDescription(updatedCourse.getDescription());
+        course.setPrice(updatedCourse.getPrice());
+
+        return courseRepository.save(course);
+    }
+
+    // ===================== GET COURSE FOR EDIT PAGE =====================
+    @GetMapping("/mentor/{courseId}")
+    public Course getCourse(@PathVariable Long courseId) {
+        return courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+    }
+
+    // ===================== GET COURSES BY MENTOR =====================
+    // API remains SAME → /api/course/mentor/mentor/{mentorId}
+    @GetMapping("/mentor/mentor/{mentorId}")
+    public List<Course> getCoursesByMentor(@PathVariable Long mentorId) {
+        return courseRepository.findByMentorId(mentorId);
+    }
+
+    // ===================== HOME PAGE COURSES (NO CHAPTERS) =====================
     @GetMapping
     public List<CourseDTO> getAllCourses() {
-        return courseService.getAllCourses().stream().map(course ->
-                new CourseDTO(
+        return courseService.getAllCourses()
+                .stream()
+                .map(course -> new CourseDTO(
                         course.getId(),
                         course.getTitle(),
                         course.getDescription(),
                         course.getPrice(),
                         course.getMentor(),
                         course.getCategory(),
-                        null   // ❗ NO chapters for home page
-                )
-        ).collect(Collectors.toList());
+                        null // ❌ No chapters for home page
+                ))
+                .toList();
     }
 
-    // ✅ COURSE DETAILS PAGE
+    // ===================== COURSE DETAILS (WITH CHAPTERS + TOPICS) =====================
     @GetMapping("/{id}")
     public ResponseEntity<CourseDTO> getCourseWithChapters(@PathVariable Long id) {
 
-        Optional<Course> courseOpt = courseService.getCourseById(id);
-        if (courseOpt.isEmpty())
-            return ResponseEntity.notFound().build();
+        Course course = courseService.getCourseById(id)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        Course course = courseOpt.get();
-
-        List<ChapterDTO> chaptersDTO = course.getChapters().stream().map(ch -> {
-            List<TopicDTO> topicsDTO = ch.getTopics().stream()
-                    .map(tp -> new TopicDTO(tp.getId(), tp.getTitle(), tp.getContent()))
-                    .collect(Collectors.toList());
-
-            return new ChapterDTO(ch.getId(), ch.getTitle(), topicsDTO);
-        }).collect(Collectors.toList());
+        List<ChapterDTO> chaptersDTO = course.getChapters()
+                .stream()
+                .map(ch -> new ChapterDTO(
+                        ch.getId(),
+                        ch.getTitle(),
+                        ch.getTopics()
+                                .stream()
+                                .map(tp -> new TopicDTO(
+                                        tp.getId(),
+                                        tp.getTitle(),
+                                        tp.getContent()
+                                ))
+                                .toList()
+                ))
+                .toList();
 
         CourseDTO courseDTO = new CourseDTO(
                 course.getId(),
