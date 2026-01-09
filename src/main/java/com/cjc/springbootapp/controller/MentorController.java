@@ -3,16 +3,17 @@ package com.cjc.springbootapp.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.cjc.springbootapp.model.Chapter;
 import com.cjc.springbootapp.model.Course;
 import com.cjc.springbootapp.model.CoursePurchase;
 import com.cjc.springbootapp.model.User;
-import com.cjc.springbootapp.repository.CourseRepository;
 import com.cjc.springbootapp.repository.ChapterRepository;
-import com.cjc.springbootapp.repository.CoursePurchaseRepository;
 import com.cjc.springbootapp.repository.UserRepository;
+import com.cjc.springbootapp.service.CourseService;
 
 @RestController
 @RequestMapping("/api/mentor")
@@ -23,12 +24,12 @@ public class MentorController {
     private UserRepository userRepository;
 
     @Autowired
-    private CourseRepository courseRepository;
+    private ChapterRepository chapterRepository;
 
     @Autowired
-    private CoursePurchaseRepository purchaseRepository;
+    private CourseService courseService;
 
-    // 1️⃣ Get all mentors
+    // ✅ 1️⃣ Get all mentors
     @GetMapping("/all")
     public List<User> getAllMentors() {
         return userRepository.findAll()
@@ -37,49 +38,54 @@ public class MentorController {
                 .toList();
     }
 
-    // 2️⃣ Get all courses of a mentor
+    // ✅ 2️⃣ Get all courses of a mentor
     @GetMapping("/{mentorId}/courses")
     public List<Course> getMentorCourses(@PathVariable Long mentorId) {
-        return courseRepository.findAll()
-                .stream()
-                .filter(c -> c.getMentor().getId().equals(mentorId))
-                .toList();
+        return courseService.getMentorCourses(mentorId);
     }
 
-    // 3️⃣ Add a new course
+    // ✅ 3️⃣ Add a new course
     @PostMapping("/course")
     public Course addCourse(@RequestBody Course course) {
         course.setMentor(userRepository.findById(course.getMentor().getId()).orElse(null));
-        return courseRepository.save(course);
+        return courseService.addCourse(course);
     }
 
-    // 4️⃣ Update a course
+    // ✅ 4️⃣ Update a course
     @PutMapping("/course/{courseId}")
     public Course updateCourse(@PathVariable Long courseId, @RequestBody Course updatedCourse) {
-        Course course = courseRepository.findById(courseId).orElseThrow();
+        Course course = courseService.getCourseById(courseId).orElseThrow();
         course.setTitle(updatedCourse.getTitle());
         course.setDescription(updatedCourse.getDescription());
         course.setPrice(updatedCourse.getPrice());
-        return courseRepository.save(course);
+        return courseService.addCourse(course);
     }
-    @Autowired
-    private ChapterRepository chapterRepository;
 
-    // 1️⃣ Get chapters for a course
+    // ✅ 5️⃣ Delete a course safely
+    @DeleteMapping("/course/{courseId}")
+    public ResponseEntity<String> deleteCourse(@PathVariable Long courseId) {
+        try {
+            courseService.deleteCourse(courseId);
+            return ResponseEntity.ok("Course deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Cannot delete course: " + e.getMessage());
+        }
+    }
+
+    // ✅ 6️⃣ Chapter endpoints
     @GetMapping("/course/{courseId}/chapters")
     public List<Chapter> getChapters(@PathVariable Long courseId) {
         return chapterRepository.findByCourseId(courseId);
     }
 
-    // 2️⃣ Add a chapter to a course
     @PostMapping("/course/{courseId}/chapter")
     public Chapter addChapter(@PathVariable Long courseId, @RequestBody Chapter chapter) {
-        Course course = courseRepository.findById(courseId).orElseThrow();
+        Course course = courseService.getCourseById(courseId).orElseThrow();
         chapter.setCourse(course);
         return chapterRepository.save(chapter);
     }
 
-    // 3️⃣ Update chapter
     @PutMapping("/chapter/{chapterId}")
     public Chapter updateChapter(@PathVariable Long chapterId, @RequestBody Chapter updated) {
         Chapter chapter = chapterRepository.findById(chapterId).orElseThrow();
@@ -88,27 +94,9 @@ public class MentorController {
         return chapterRepository.save(chapter);
     }
 
-    // 4️⃣ Delete chapter
     @DeleteMapping("/chapter/{chapterId}")
     public String deleteChapter(@PathVariable Long chapterId) {
         chapterRepository.deleteById(chapterId);
         return "Deleted";
-    }
-
-
-    // 5️⃣ Delete a course
-    @DeleteMapping("/course/{courseId}")
-    public String deleteCourse(@PathVariable Long courseId) {
-        courseRepository.deleteById(courseId);
-        return "Deleted";
-    }
-
-    // 6️⃣ Get purchases for a specific course
-    @GetMapping("/course/{courseId}/purchases")
-    public List<CoursePurchase> getCoursePurchases(@PathVariable Long courseId) {
-        return purchaseRepository.findAll()
-                .stream()
-                .filter(p -> p.getCourse().getId().equals(courseId))
-                .toList();
     }
 }
